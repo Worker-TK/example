@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>three-vrm example</title>
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"
+		/>
+		<style>
+			body {
+				margin: 0;
+			}
+			canvas {
+				display: block;
+			}
+		</style>
+	</head>
+
+	<body>
+		<script src="three.js"></script>
+		<script src="GLTFLoader.js"></script>
+		<script src="OrbitControls.js"></script>
+		<script src="three-vrm.js"></script>
+		<script>
+
+			// renderer
+			const renderer = new THREE.WebGLRenderer();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.setPixelRatio( window.devicePixelRatio );
+			renderer.setClearColor(0x00FF00, 1.0)
+			document.body.appendChild( renderer.domElement );
+
+			// camera
+			const camera = new THREE.PerspectiveCamera( 20.0, window.innerWidth / window.innerHeight, 0.1, 20.0 );
+			camera.position.set( 0.0, 1.0, 5.0 );
+
+			// camera controls
+			const controls = new THREE.OrbitControls( camera, renderer.domElement );
+			controls.screenSpacePanning = true;
+			controls.target.set( 0.0, 1.0, 0.0 );
+			controls.update();
+
+			// scene
+			const scene = new THREE.Scene();
+
+			// light
+			const light = new THREE.DirectionalLight( 0xffffff );
+			light.position.set( 1.0, 1.0, 1.0 ).normalize();
+			scene.add( light );
+
+			// gltf and vrm
+			let currentVrm = undefined;
+			let currentMixer = undefined;
+			const loader = new THREE.GLTFLoader();
+			loader.crossOrigin = 'anonymous';
+			loader.load(
+
+				'https://worker-tk.github.io/example/Worker-TK.vrm',
+
+				( gltf ) => {
+
+					THREE.VRMUtils.removeUnnecessaryJoints( gltf.scene );
+
+					THREE.VRM.from( gltf ).then( ( vrm ) => {
+
+						scene.add( vrm.scene );
+						currentVrm = vrm;
+
+						vrm.humanoid.getBoneNode( THREE.VRMSchema.HumanoidBoneName.Hips ).rotation.y = Math.PI;
+
+						prepareAnimation( vrm );
+
+						console.log( vrm );
+
+					} );
+
+				},
+
+				( progress ) => console.log( 'Loading model...', 100.0 * ( progress.loaded / progress.total ), '%' ),
+
+				( error ) => console.error( error )
+
+			);
+
+			// helpers
+//			const gridHelper = new THREE.GridHelper( 10, 10 );
+//			scene.add( gridHelper );
+
+//			const axesHelper = new THREE.AxesHelper( 5 );
+//			scene.add( axesHelper );
+
+			// animate
+			const clock = new THREE.Clock();
+
+//			t=0;
+			max=1600;
+			x=400+(max-800)/2;
+			y=400+(max-800)/2;
+
+			function http_get() {
+				fetch('http://35.75.99.226:8080/index.htm')
+				.then(async response => {
+					if (response.ok) {
+						return response.text();
+					}else{
+						return "400_400";
+					}
+				})
+				.then(data => {
+					str=data.split('_');
+					x_get=parseInt(str[0], 10)+(max-800)/2;
+					y_get=parseInt(str[1], 10)+(max-800)/2;
+					http_get();
+				});
+			}
+			http_get();
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				const deltaTime = clock.getDelta();
+
+				if ( currentVrm ) {
+
+//					x_get=400+(max-800)/2;
+//					y_get=400+(max-800)/2;
+					
+					x=x_get;
+					y=y_get;
+
+					// tweak blendshape
+					const s = Math.sin( Math.PI * clock.elapsedTime );
+					currentVrm.blendShapeProxy.setValue( THREE.VRMSchema.BlendShapePresetName.Fun, 1.0);
+//					currentVrm.blendShapeProxy.setValue( THREE.VRMSchema.BlendShapePresetName.A, 0.5 + 0.5 * s );
+//					currentVrm.blendShapeProxy.setValue( THREE.VRMSchema.BlendShapePresetName.Blink, 0.5 - 0.5 * s );
+
+					const leftupperarm = currentVrm.humanoid.getBoneNode( THREE.VRMSchema.HumanoidBoneName.LeftUpperArm);
+//					leftupperarm.rotation.x = Math.PI*(t/max); // 手の平が下は0、手の平が上はmax
+//					leftupperarm.rotation.y = Math.PI*(t/max)-Math.PI; // 左は0、右はmax
+//					leftupperarm.rotation.z = Math.PI/2-Math.PI*(t/max); // 下は0、上はmax
+					leftupperarm.rotation.y = Math.PI*(x/max)-Math.PI; // 左は0、右はmax
+					leftupperarm.rotation.z = Math.PI/2-Math.PI*(y/max); // 下は0、上はmax
+
+//					leftupperarm.rotation.y = Math.PI*(100/max)-Math.PI; // 左は0、右はmax
+//					leftupperarm.rotation.z = Math.PI/2-Math.PI*(100/max); // 上は0、下はmax
+
+					const rightupperarm = currentVrm.humanoid.getBoneNode( THREE.VRMSchema.HumanoidBoneName.RightUpperArm);
+//					rightupperarm.rotation.x = Math.PI*(t/max); // 手の平が下は0、手の平が上はmax
+//					rightupperarm.rotation.y = Math.PI*(t/max); // 左は0、右はmax
+//					rightupperarm.rotation.z = Math.PI*(t/max)-Math.PI/2; // 下は0、上はmax
+					rightupperarm.rotation.z = Math.PI*(100/max)-Math.PI/2; // 下は0、上はmax
+
+					currentVrm.update( deltaTime );
+
+				}
+
+				renderer.render( scene, camera );
+
+//				t++;
+//				if(t>max){
+//					t=0;
+//				}
+
+			}
+
+			animate();
+		</script>
+	</body>
+</html>
